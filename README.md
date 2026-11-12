@@ -17,32 +17,42 @@ Your TaskFlow API deployed on Railway:
 https://taskflow-api-sz5v.onrender.com/api/tasks
 ```
 
-### Screenshot: Railway dashboard
+### Screenshot: Render dashboard
 
-Your Railway dashboard showing the active deployment. Save the image in the `screenshots/` folder and update the file name below if needed.
+Your Render dashboard showing the active deployment. Save the image in the `screenshots/` folder and update the file name below if needed.
 
-![Railway dashboard](screenshots/dashboard.png)
+![Render dashboard](screenshots/dashboard.png)
 
 ### Screenshot: Live application
 
-Your live Railway URL returning task data (in your browser or terminal).
+Your live Render URL returning task data (in your browser or terminal).
 
 ![Live application](screenshots/application.png)
+![Live application](screenshots/postman-getalltask.png)
+![Live application](screenshots/postman-getTaskById.png)
+![Live application](screenshots/postman-getCreateTask.png)
 
 ### Errors and failures
 
 If you didn't complete every task, list what you completed, what went wrong, and the error messages you saw. If everything worked, write "None".
 
 ```
-Completed: Task 1, Task 2
-
-Error at Task 3:
-<paste the error message here>
+None
 ```
 
 ### Stretch goal (optional)
 
 Which stretch goal you chose (if any), what you built, and any links (for example, your frontend URL, CI pipeline run or Docker Hub tags).
+
+```
+Stretch goal: CircleCI & Snyk
+Links: https://app.circleci.com/workflow/88387328-91d6-46d5-b771-3d651e46ab0d
+Notes: CicleCI and Security check with snyk
+* There a critical vurnerability found that cannot be resolved, so added to ignore to allow success deployment
+* Update the code using OpenCode to fix medium code testing
+* low vurnerability ignored
+```
+![CircleCI application](screenshots/CircleCI.png)
 
 ```
 Stretch goal: <option number and name, or "None">
@@ -82,6 +92,10 @@ The application starts on `http://localhost:8080`.
 | POST   | `/api/tasks`      | Create a new task        | Task JSON     | `201 Created`     |
 
 ### Testing the API
+
+Task creation accepts only `title`, `description`, `priority`, `dueDate`, and
+`completed`. The server generates `id`; supplying it or any unknown field returns
+`400 Bad Request`. Omitting `completed` defaults it to `false`.
 
 Create a task:
 

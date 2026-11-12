@@ -64,7 +64,7 @@ jobs:
             - maven-deps-{{ checksum "pom.xml" }}
             - maven-deps-
       - snyk/scan:
-          severity-threshold: high
+          severity-threshold: medium
           cli-version: 1.1308.1
           monitor-on-build: false
  
@@ -78,7 +78,7 @@ jobs:
       - checkout
       - snyk/scan:
           command: code test
-          severity-threshold: high
+          severity-threshold: medium
           cli-version: 1.1308.1
           monitor-on-build: false
 
@@ -95,16 +95,19 @@ jobs:
       - setup_remote_docker
       - run:
           name: Build Docker image
+          # Build the Docker image with both the versioned and latest tags
           command: |
             echo "Building Docker image..."
-            docker build -t $DOCKER_USERNAME/taskflow:latest .
+            docker build -t "$DOCKER_USERNAME/taskflow:v1.0.${CIRCLE_BUILD_NUM}" -t "$DOCKER_USERNAME/taskflow:latest" .
       - run:
           name: Push to Docker Hub
+          # Push both the versioned and latest Docker images to Docker Hub
           command: |
             echo "Logging in to Docker Hub..."
             echo $DOCKER_TOKEN | docker login -u $DOCKER_USERNAME --password-stdin
             echo "Pushing image to Docker Hub..."
-            docker push $DOCKER_USERNAME/taskflow:latest
+            docker push "$DOCKER_USERNAME/taskflow:v1.0.${CIRCLE_BUILD_NUM}"
+            docker push "$DOCKER_USERNAME/taskflow:latest"
   # ==========================================
   # DEPLOY JOB - Redeploy on Render with the Render CLI
   # ==========================================

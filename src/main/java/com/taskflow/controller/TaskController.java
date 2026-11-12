@@ -1,5 +1,6 @@
 package com.taskflow.controller;
 
+import com.taskflow.dto.CreateTaskRequest;
 import com.taskflow.entity.Task;
 import com.taskflow.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +29,13 @@ public class TaskController {
     }
 
     @PostMapping
-    public ResponseEntity<Task> createTask(@RequestBody Task task) {
+    public ResponseEntity<Task> createTask(@RequestBody CreateTaskRequest request) {
+        Task task = new Task();
+        task.setTitle(request.getTitle());
+        task.setDescription(request.getDescription());
+        task.setPriority(request.getPriority());
+        task.setDueDate(request.getDueDate());
+        task.setCompleted(request.getCompleted());
         Task createdTask = taskService.createTask(task);
         return new ResponseEntity<>(createdTask, HttpStatus.CREATED);
     }
