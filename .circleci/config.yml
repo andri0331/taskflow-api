@@ -1,0 +1,180 @@
+version: 2.1
+
+orbs:
+  snyk: snyk/snyk@2.3.0
+
+# ==========================================
+# BUILD JOB - Compile and package
+# ==========================================
+jobs:
+  build:
+    docker:
+      - image: cimg/openjdk:21.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - maven-deps-{{ checksum "pom.xml" }}
+            - maven-deps-
+      - run:
+          name: Install dependencies and build
+          command: |
+            echo "Building the application..."
+            mvn clean install -DskipTests
+      - save_cache:
+          paths:
+            - ~/.m2
+          key: maven-deps-{{ checksum "pom.xml" }}
+      - persist_to_workspace:
+          root: .
+          paths:
+            - target/*.jar
+  # ==========================================
+  # TEST JOB - Run automated tests
+  # ==========================================
+  test:
+    docker:
+      - image: cimg/openjdk:21.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - maven-deps-{{ checksum "pom.xml" }}
+            - maven-deps-
+      - run:
+          name: Run tests
+          command: |
+            echo "Running tests..."
+            mvn test
+      - store_test_results:
+          path: target/surefire-reports
+      - store_artifacts:
+          path: target/surefire-reports
+  
+  # ==========================================
+  # SNYK_SCAN JOB - Snyk: scan Maven dependencies
+  # ==========================================
+  snyk_scan:
+    docker:
+      - image: cimg/openjdk:21.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - maven-deps-{{ checksum "pom.xml" }}
+            - maven-deps-
+      - snyk/scan:
+          severity-threshold: low
+          cli-version: 1.1308.1
+          monitor-on-build: false
+ 
+  # ==========================================
+  # SNYK_CODE JOB - Snyk Code: static analysis (SAST) of src/
+  # ==========================================
+  snyk_code:
+    docker:
+      - image: cimg/openjdk:21.0
+    steps:
+      - checkout
+      - snyk/scan:
+          command: code test
+          severity-threshold: low
+          cli-version: 1.1308.1
+          monitor-on-build: false
+
+  # ==========================================
+  # PUBLISH JOB - Build and push Docker image
+  # ==========================================
+  publish:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - setup_remote_docker
+      - run:
+          name: Build Docker image
+          command: |
+            echo "Building Docker image..."
+            docker build -t $DOCKER_USERNAME/taskflow:latest .
+      - run:
+          name: Push to Docker Hub
+          command: |
+            echo "Logging in to Docker Hub..."
+            echo $DOCKER_TOKEN | docker login -u $DOCKER_USERNAME --password-stdin
+            echo "Pushing image to Docker Hub..."
+            docker push $DOCKER_USERNAME/taskflow:latest
+  # ==========================================
+  # DEPLOY JOB - Redeploy on Render with the Render CLI
+  # ==========================================
+  deploy:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - run:
+          name: Install the Render CLI
+          command: |
+            curl -fsSL https://raw.githubusercontent.com/render-oss/cli/refs/heads/main/bin/install.sh | sh
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$BASH_ENV"
+      - run:
+          name: Redeploy latest image on Render and wait
+          command: |
+            echo "Asking Render to redeploy the latest image..."
+            render deploys create "$RENDER_SERVICE_ID" --wait --confirm --output text --image "docker.io/$DOCKER_USERNAME/taskflow:latest"
+            echo "The new version is live on Render."
+
+  # ==========================================
+  # NOTIFY JOB - Post the deployment result to Discord
+  # ==========================================
+  notify:
+    parameters:
+      result:
+        type: enum
+        enum: ["success", "failed"]
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - run:
+          name: Send the deployment result to Discord
+          command: |
+            if [ "<< parameters.result >>" = "success" ]; then
+              MESSAGE="✅ taskflow deployed to production - commit ${CIRCLE_SHA1:0:7} by ${CIRCLE_USERNAME}"
+            else
+              MESSAGE="❌ taskflow deployment FAILED - commit ${CIRCLE_SHA1:0:7} by ${CIRCLE_USERNAME}. Production is still running the previous version."
+            fi
+            curl --fail --silent --show-error \
+              -H "Content-Type: application/json" \
+              -d "{\"content\": \"${MESSAGE}\"}" \
+              "$DISCORD_WEBHOOK_URL"
+            echo "Posted to Discord: ${MESSAGE}"
+
+workflows:
+  build_test_publish_deploy:
+    jobs:
+      - build
+      - snyk_scan
+      - snyk_code
+      - test:
+          requires:
+            - build
+      - publish:
+          context: docker-hub
+          requires:
+            - test           
+            - snyk_scan
+            - snyk_code
+      - deploy:
+          context: docker-hub
+          requires:
+            - publish
+      - notify:
+          name: notify-success
+          result: success
+          requires:
+            - deploy: success
+      - notify:
+          name: notify-failure
+          result: failed
+          requires:
+            - deploy: failed
