@@ -30,7 +30,7 @@ Your live Render URL returning task data (in your browser or terminal).
 ![Live application](screenshots/application.png)
 ![Live application](screenshots/postman-getalltask.png)
 ![Live application](screenshots/postman-getTaskById.png)
-![Live application](screenshots/postman-getCreateTask.png)
+![Live application](screenshots/postman-createTask.png)
 
 ### Errors and failures
 
@@ -53,6 +53,7 @@ Notes: CicleCI and Security check with snyk
 * low vurnerability ignored
 ```
 ![CircleCI application](screenshots/CircleCI.png)
+![Snyk application](screenshots/snyk.png)
 
 ```
 Stretch goal: PUBLISH VERSIONED DOCKER IMAGES
